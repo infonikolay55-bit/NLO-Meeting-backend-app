@@ -1,7 +1,7 @@
 # app package
 from fastapi import FastAPI
 
-app = FastAPI(title="MinuteMind Backend")
+app = FastAPI(title="NLO Meeting Backend")
 
 # include routers lazily to avoid import side-effects
 try:
