@@ -8,17 +8,30 @@ from botocore.config import Config
 
 
 def _client():
-    region = os.getenv("AWS_REGION")
+    region = os.getenv("SPACES_REGION")
     if not region:
-        raise RuntimeError("AWS_REGION must be configured")
-    # boto3 uses the standard credential chain (IAM role in deployed environments).
-    return boto3.client("s3", region_name=region, config=Config(signature_version="s3v4"))
+        raise RuntimeError("SPACES_REGION must be configured")
+    access_key_id = os.getenv("SPACES_ACCESS_KEY_ID")
+    secret_access_key = os.getenv("SPACES_SECRET_ACCESS_KEY")
+    endpoint_url = os.getenv("DO_SPACES_ENDPOINT_URL")
+    if endpoint_url:
+        return boto3.client(
+            "s3", aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            region_name=region, endpoint_url=endpoint_url,
+            config=Config(signature_version="s3v4"),
+        )
+    return boto3.client(
+        "s3", aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        region_name=region, config=Config(signature_version="s3v4"),
+    )
 
 
 def _bucket() -> str:
-    bucket = os.getenv("S3_BUCKET_NAME")
+    bucket = os.getenv("SPACES_BUCKET_NAME")
     if not bucket:
-        raise RuntimeError("S3_BUCKET_NAME must be configured")
+        raise RuntimeError("SPACES_BUCKET_NAME must be configured")
     return bucket
 
 
