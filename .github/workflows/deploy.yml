@@ -1,4 +1,4 @@
-name: Deploy Python Backend to AWS EC2
+name: Deploy Python Backend to DigitalOcean
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to EC2 via SSH
+      - name: Deploy via SSH
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           HOST: ${{ secrets.EC2_HOST }}
@@ -23,6 +23,9 @@ jobs:
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
 
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no "$USER@$HOST" << 'EOF'
-            cd /home/ubuntu/hubbackend
+            cd /root/NLO-Meeting-backend-app
             git pull origin main
+            ./venv/bin/pip install -r requirements.txt
+            pkill -f uvicorn || true
+            nohup ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
           EOF
