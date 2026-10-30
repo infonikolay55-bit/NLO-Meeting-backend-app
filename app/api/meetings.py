@@ -62,26 +62,27 @@ def create_meeting(
 
     db_obj = meeting_crud.create_meeting(db=db, meeting_in=meeting_in)
 
-    # Zoho Cliq Notification Trigger
-    should_invite = getattr(meeting_in, "inviteCliq", False) or getattr(meeting_in, "invite_cliq", False)
-
-    if should_invite:
-        participants = getattr(meeting_in, "participants", []) or getattr(db_obj, "participants", [])
-        
-        meeting_date = getattr(db_obj, "meeting_date", "")
-        start_time_val = getattr(db_obj, "start_time", "")
-        end_time_val = getattr(db_obj, "end_time", "")
-        time_str = f"{meeting_date} {start_time_val}".strip()
-
-        background_tasks.add_task(
-            send_zoho_notification,
-            meeting_title=getattr(db_obj, "title", "Meeting"),
-            start_time=time_str or str(start_time_val),
-            end_time=str(end_time_val),
-            participants=participants,
-            meeting_room=getattr(db_obj, "room", getattr(db_obj, "meeting_room", "")),
-            meeting_id=str(getattr(db_obj, "id", ""))
-        )
+# ZOHO-DISABLED — re-enable later
+#     # Zoho Cliq Notification Trigger
+#     should_invite = getattr(meeting_in, "inviteCliq", False) or getattr(meeting_in, "invite_cliq", False)
+#
+#     if should_invite:
+#         participants = getattr(meeting_in, "participants", []) or getattr(db_obj, "participants", [])
+#
+#         meeting_date = getattr(db_obj, "meeting_date", "")
+#         start_time_val = getattr(db_obj, "start_time", "")
+#         end_time_val = getattr(db_obj, "end_time", "")
+#         time_str = f"{meeting_date} {start_time_val}".strip()
+#
+#         background_tasks.add_task(
+#             send_zoho_notification,
+#             meeting_title=getattr(db_obj, "title", "Meeting"),
+#             start_time=time_str or str(start_time_val),
+#             end_time=str(end_time_val),
+#             participants=participants,
+#             meeting_room=getattr(db_obj, "room", getattr(db_obj, "meeting_room", "")),
+#             meeting_id=str(getattr(db_obj, "id", ""))
+#         )
 
     return db_obj
 
