@@ -3,39 +3,37 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
-# engine နှင့် Base ကိုပါ import လုပ်ပေးပါ
 from app.core.database import SessionLocal, engine, Base 
 from app.models.meeting_room import MeetingRoom
 
 INITIAL_ROOMS = [
     {
-        "name": "MD Room",
-        "capacity": 8,
+        "name": "Executive Room",
+        "capacity": 10,
         "status": "active",
-        "devices": ["Projector 4K", "Smart TV", "Whiteboard"]
+        "devices": ["Smart TV", "Video Conference", "Whiteboard"]
     },
     {
-        "name": "Bagan Room",
-        "capacity": 12,
+        "name": "Summit Room",
+        "capacity": 15,
         "status": "active",
-        "devices": ["Smart TV", "Mic System", "Video Conference"]
+        "devices": ["Smart TV", "Mic System", "Video Conference", "Whiteboard"]
     },
     {
-        "name": "Konebaung Room",
-        "capacity": 6,
+        "name": "Focus Room",
+        "capacity": 5,
         "status": "active",
         "devices": ["TV Screen", "Whiteboard"]
     },
     {
-        "name": "BOD Home",
-        "capacity": 20,
+        "name": "Board Room",
+        "capacity": 25,
         "status": "active",
-        "devices": ["Projector 4K", "Smart TV", "Premium Mic", "Speakers", "Whiteboard"]
+        "devices": ["Projector 4K", "Smart TV", "Premium Mic", "Speakers", "Video Conference", "Whiteboard"]
     }
 ]
 
 def seed_meeting_rooms(db: Session):
-    # Table မရှိသေးပါက အလိုအလျောက် ဖန်တီးပေးမည့် መስလိုင်း
     Base.metadata.create_all(bind=engine)
 
     print("🌱 Seeding meeting rooms into database...")
