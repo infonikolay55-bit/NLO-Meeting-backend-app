@@ -12,7 +12,7 @@ load_dotenv()
 
 from app.api.v1.router import api_router
 
-app = FastAPI(title="Minutemind Backend")
+app = FastAPI(title="NLO Meeting Backend")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
