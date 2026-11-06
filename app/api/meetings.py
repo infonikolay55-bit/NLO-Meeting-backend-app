@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.crud import meeting as meeting_crud
 from app.db.session import get_db
+from app.core.security import get_current_user
+from app.models.user import User
 from app.schemas import meeting as meeting_schemas
 # from app.utils.zoho_utils import send_meeting_webhook_notification
 from app.utils.zoho_sync import send_zoho_notification
@@ -19,7 +21,8 @@ router = APIRouter(prefix="/meetings", tags=["meetings"])
 def create_meeting(
     meeting_in: meeting_schemas.MeetingCreate, 
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     if meeting_in.end_time <= meeting_in.start_time:
         raise HTTPException(
@@ -50,6 +53,7 @@ def create_meeting(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="The selected room is already booked for this date and time range."
             )
+    meeting_in.created_by = current_user.id
     user = db.execute(
         text("SELECT 1 FROM users WHERE id = :id"), 
         {"id": meeting_in.created_by}
@@ -92,7 +96,8 @@ def read_meetings(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     date: Optional[date] = Query(None, alias="date", description="Filter meetings by date (YYYY-MM-DD)"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         return meeting_crud.list_meetings(
@@ -106,7 +111,7 @@ def read_meetings(
 
 
 @router.get("/{meeting_id}", response_model=meeting_schemas.MeetingOut)
-def read_meeting(meeting_id: int, db: Session = Depends(get_db)):
+def read_meeting(meeting_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_obj = meeting_crud.get_meeting(db=db, meeting_id=meeting_id)
     if not db_obj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
@@ -115,7 +120,7 @@ def read_meeting(meeting_id: int, db: Session = Depends(get_db)):
 
 @router.put("/{meeting_id}", response_model=meeting_schemas.MeetingOut)
 @router.patch("/{meeting_id}", response_model=meeting_schemas.MeetingOut)
-def update_meeting(meeting_id: int, updates: meeting_schemas.MeetingUpdate, db: Session = Depends(get_db)):
+def update_meeting(meeting_id: int, updates: meeting_schemas.MeetingUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_obj = meeting_crud.get_meeting(db=db, meeting_id=meeting_id)
     if not db_obj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
@@ -163,7 +168,7 @@ def update_meeting(meeting_id: int, updates: meeting_schemas.MeetingUpdate, db: 
 
 
 @router.delete("/{meeting_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_meeting(meeting_id: int, db: Session = Depends(get_db)):
+def delete_meeting(meeting_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_obj = meeting_crud.get_meeting(db=db, meeting_id=meeting_id)
     if not db_obj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")

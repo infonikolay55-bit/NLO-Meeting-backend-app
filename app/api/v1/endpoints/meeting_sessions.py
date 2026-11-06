@@ -4,11 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.db.session import get_db
+from app.core.security import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/meeting-sessions", tags=["meeting-sessions"])
 
 @router.get("/", response_model=Dict[str, Any])
-def get_all_meeting_sessions(db: Session = Depends(get_db)):
+def get_all_meeting_sessions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         sessions_result = db.execute(
             text("SELECT id, status FROM meetings")
@@ -32,7 +34,8 @@ def get_all_meeting_sessions(db: Session = Depends(get_db)):
 def update_meeting_session_status(
     meeting_id: str, 
     payload: dict, 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     new_status = payload.get("status")
     if new_status not in ["running", "stopped", "idle"]:
