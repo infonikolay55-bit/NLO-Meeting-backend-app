@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import create_access_token
 from app.crud import crud_user
+from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, Token
 from app.schemas.user import UserCreate, UserOut
 from app.core.security import get_current_user
@@ -369,3 +370,26 @@ def update_profile_image(
     db.refresh(current_user)
     
     return {"message": "Image updated successfully", "image": current_user.image}
+
+
+@router.get("/users")
+def auth_users_directory(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    users = db.query(User).order_by(User.name).all()
+    return [
+        {"id": u.id, "name": u.name, "email": u.email, "position": u.position}
+        for u in users
+    ]
+
+
+@router.get("/positions")
+def auth_positions_directory(db: Session = Depends(get_db)):
+    rows = (
+        db.query(User.position)
+        .filter(User.position.isnot(None), User.position != "")
+        .distinct()
+        .all()
+    )
+    return [r[0] for r in rows]
