@@ -15,6 +15,15 @@ from app.schemas.auth import LoginRequest, RegisterRequest, Token
 from app.schemas.user import UserCreate, UserOut
 from app.core.security import get_current_user
 
+
+def _bootstrap_first_admin(db, user):
+    admin_email = os.getenv("FIRST_ADMIN_EMAIL")
+    if admin_email and user.email and user.email.lower() == admin_email.strip().lower():
+        if getattr(user, "role", None) != "admin":
+            user.role = "admin"
+            db.commit()
+            db.refresh(user)
+
 load_dotenv()
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -300,7 +309,9 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
         position=payload.position,
         image=payload.image,
     )
-    return crud_user.create_user(db, user_payload)
+    user = crud_user.create_user(db, user_payload)
+    _bootstrap_first_admin(db, user)
+    return user
 
 
 @router.post("/login")
@@ -318,11 +329,17 @@ def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
             detail="Incorrect email or password",
         )
 
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="This account has been deactivated. Please contact an administrator.")
+
+    _bootstrap_first_admin(db, user)
+
     token = create_access_token({
         "sub": str(user.id),
         "email": user.email,
         "name": user.name,
         "position": user.position,
+        "role": user.role,
     })
 
     return {
@@ -333,7 +350,9 @@ def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
             "name": user.name,
             "email": user.email,
             "position": user.position,
-            "image": user.image
+            "image": user.image,
+            "role": user.role,
+            "is_active": user.is_active
         }
     }
 

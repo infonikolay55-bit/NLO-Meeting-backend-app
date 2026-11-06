@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Text, DateTime, func
+from sqlalchemy import Column, BigInteger, String, Text, DateTime, Boolean, func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -10,6 +10,8 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password = Column(String(255), nullable=True)
     position = Column(String(100), nullable=True)
+    role = Column(String(50), nullable=False, default="member")
+    is_active = Column(Boolean, nullable=False, default=True)
     
     image = Column(Text, nullable=True)
     
