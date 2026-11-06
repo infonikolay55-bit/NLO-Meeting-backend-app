@@ -392,4 +392,4 @@ def auth_positions_directory(db: Session = Depends(get_db)):
         .distinct()
         .all()
     )
-    return [r[0] for r in rows]
+    return {"positions": [r[0] for r in rows]}
