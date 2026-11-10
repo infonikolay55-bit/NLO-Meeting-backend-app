@@ -23,7 +23,8 @@ def check_room_conflict(
         Meeting.room_id == room_id,
         Meeting.meeting_date == meeting_date,
         Meeting.start_time < end_time,
-        Meeting.end_time > start_time
+        Meeting.end_time > start_time,
+        Meeting.status != "rejected"
     )
     
     if exclude_meeting_id is not None:

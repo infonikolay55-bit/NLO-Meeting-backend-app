@@ -40,6 +40,11 @@ def create_meeting(
             detail=f"Meetings can only be booked between {work_start:%H:%M} and {work_end:%H:%M}",
         )
 
+    booking_rule = db.query(BookingRule).filter(BookingRule.id == 1).first()
+    approval_required = booking_rule.approval_required if booking_rule else True
+    if approval_required:
+        meeting_in.status = "pending"
+
     if meeting_in.room_id is not None:
         room = db.execute(
             text("SELECT 1 FROM meeting_rooms WHERE id = :id"), 
@@ -118,6 +123,91 @@ def read_meetings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch meetings: {str(exc)}"
         )
+
+
+def _require_approver(db: Session, current_user: User) -> User:
+    booking_rule = db.query(BookingRule).filter(BookingRule.id == 1).first()
+    approver_admin = booking_rule.approver_admin if booking_rule else True
+    approver_approver = booking_rule.approver_approver if booking_rule else True
+    if not (
+        (current_user.role == "admin" and approver_admin)
+        or (current_user.role == "approver" and approver_approver)
+    ):
+        raise HTTPException(status_code=403, detail="Approver access required")
+    return current_user
+
+
+@router.get("/pending-approvals", response_model=List[meeting_schemas.PendingApprovalOut])
+def read_pending_approvals(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_approver(db, current_user)
+    pending_meetings = (
+        db.query(models.Meeting)
+        .filter(models.Meeting.status == "pending")
+        .order_by(models.Meeting.meeting_date, models.Meeting.start_time)
+        .all()
+    )
+    results = []
+    for meeting in pending_meetings:
+        creator_name = db.query(User.name).filter(User.id == meeting.created_by).scalar() or ""
+        meeting_data = meeting_schemas.MeetingOut.model_validate(meeting).model_dump()
+        meeting_data["created_by_name"] = creator_name
+        results.append(meeting_schemas.PendingApprovalOut.model_validate(meeting_data))
+    return results
+
+
+@router.post("/{meeting_id}/approve", response_model=meeting_schemas.MeetingOut)
+def approve_meeting(
+    meeting_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_approver(db, current_user)
+    db_obj = meeting_crud.get_meeting(db=db, meeting_id=meeting_id)
+    if not db_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+    if db_obj.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This booking is not waiting for approval")
+    if db_obj.room_id is not None and meeting_crud.check_room_conflict(
+        db=db,
+        room_id=db_obj.room_id,
+        meeting_date=db_obj.meeting_date,
+        start_time=db_obj.start_time,
+        end_time=db_obj.end_time,
+        exclude_meeting_id=meeting_id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The selected room is already booked for this date and time range.",
+        )
+    db_obj.status = "approved"
+    db_obj.decided_by = current_user.id
+    db_obj.decided_at = datetime.utcnow()
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
+
+
+@router.post("/{meeting_id}/reject", response_model=meeting_schemas.MeetingOut)
+def reject_meeting(
+    meeting_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_approver(db, current_user)
+    db_obj = meeting_crud.get_meeting(db=db, meeting_id=meeting_id)
+    if not db_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
+    if db_obj.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This booking is not waiting for approval")
+    db_obj.status = "rejected"
+    db_obj.decided_by = current_user.id
+    db_obj.decided_at = datetime.utcnow()
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
 
 
 @router.get("/{meeting_id}", response_model=meeting_schemas.MeetingOut)

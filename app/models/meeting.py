@@ -8,6 +8,7 @@ from sqlalchemy import (
     Time,
     Enum as SAEnum,
     ForeignKey,
+    DateTime,
     TIMESTAMP,
     func,
 )
@@ -45,6 +46,8 @@ class Meeting(Base):
     company_name = Column(String(255), nullable=False)
     status = Column(String(32), nullable=False, default="scheduled", server_default="scheduled")
     created_by = Column(BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    decided_by = Column(BigInteger, ForeignKey("users.id"), nullable=True)
+    decided_at = Column(DateTime, nullable=True)
 
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
