@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -10,6 +10,7 @@ from app.crud import meeting as meeting_crud
 from app.db.session import get_db
 from app.core.security import get_current_user
 from app.models.user import User
+from app.models.booking_rule import BookingRule
 from app.schemas import meeting as meeting_schemas
 # from app.utils.zoho_utils import send_meeting_webhook_notification
 from app.utils.zoho_sync import send_zoho_notification
@@ -28,6 +29,15 @@ def create_meeting(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
             detail="end_time must be after start_time"
+        )
+
+    booking_rule = db.query(BookingRule).filter(BookingRule.id == 1).first()
+    work_start = booking_rule.work_start if booking_rule else datetime.strptime("09:00", "%H:%M").time()
+    work_end = booking_rule.work_end if booking_rule else datetime.strptime("18:00", "%H:%M").time()
+    if meeting_in.start_time < work_start or meeting_in.end_time > work_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Meetings can only be booked between {work_start:%H:%M} and {work_end:%H:%M}",
         )
 
     if meeting_in.room_id is not None:

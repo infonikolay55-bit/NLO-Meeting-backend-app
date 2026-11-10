@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS booking_rules (
+  id BIGINT PRIMARY KEY,
+  approval_required BOOLEAN NOT NULL DEFAULT TRUE,
+  work_start TIME NOT NULL DEFAULT '09:00',
+  work_end TIME NOT NULL DEFAULT '18:00',
+  notify_email BOOLEAN NOT NULL DEFAULT TRUE,
+  notify_in_app BOOLEAN NOT NULL DEFAULT TRUE
+);
