@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_admin
 from app.models.user import User
 from app.schemas.meeting_room import MeetingRoomCreate, MeetingRoomUpdate, MeetingRoomResponse
 from app import crud
@@ -28,12 +28,12 @@ def read_meeting_room(room_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=MeetingRoomResponse, status_code=status.HTTP_201_CREATED)
-def create_meeting_room(room_in: MeetingRoomCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_meeting_room(room_in: MeetingRoomCreate, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     return crud.crud_meeting_room.create_meeting_room(db=db, room_in=room_in)
 
 
 @router.put("/{room_id}", response_model=MeetingRoomResponse)
-def update_meeting_room(room_id: int, room_in: MeetingRoomUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_meeting_room(room_id: int, room_in: MeetingRoomUpdate, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     db_room = crud.crud_meeting_room.get_meeting_room_by_id(db, room_id=room_id)
     if not db_room:
         raise HTTPException(
@@ -44,7 +44,7 @@ def update_meeting_room(room_id: int, room_in: MeetingRoomUpdate, db: Session = 
 
 
 @router.delete("/{room_id}", status_code=status.HTTP_200_OK)
-def delete_meeting_room(room_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_meeting_room(room_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     db_room = crud.crud_meeting_room.get_meeting_room_by_id(db, room_id=room_id)
     if not db_room:
         raise HTTPException(
