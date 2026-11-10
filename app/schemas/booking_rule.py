@@ -19,3 +19,13 @@ class BookingRulesUpdate(BaseModel):
     approver_approver: bool
     notify_email: bool
     notify_in_app: bool
+
+
+class NotificationPreferencesOut(BaseModel):
+    email_enabled: bool
+    inapp_enabled: bool
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    email_enabled: bool
+    inapp_enabled: bool

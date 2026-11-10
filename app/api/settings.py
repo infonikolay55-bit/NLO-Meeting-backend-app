@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user, require_admin
 from app.models.booking_rule import BookingRule
+from app.models.notification_preference import NotificationPreference
 from app.schemas.booking_rule import BookingRulesOut, BookingRulesUpdate
+from app.schemas.booking_rule import NotificationPreferencesOut, NotificationPreferencesUpdate
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -78,3 +80,46 @@ def update_booking_rules(
     db.commit()
     db.refresh(rule)
     return _format_rules(rule)
+
+
+@router.get("/notification-preferences", response_model=NotificationPreferencesOut)
+def get_notification_preferences(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    preferences = (
+        db.query(NotificationPreference)
+        .filter(NotificationPreference.user_id == current_user.id)
+        .first()
+    )
+    if preferences is None:
+        return NotificationPreferencesOut(email_enabled=True, inapp_enabled=True)
+    return NotificationPreferencesOut(
+        email_enabled=preferences.email_enabled,
+        inapp_enabled=preferences.inapp_enabled,
+    )
+
+
+@router.put("/notification-preferences", response_model=NotificationPreferencesOut)
+def update_notification_preferences(
+    updates: NotificationPreferencesUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    preferences = (
+        db.query(NotificationPreference)
+        .filter(NotificationPreference.user_id == current_user.id)
+        .first()
+    )
+    if preferences is None:
+        preferences = NotificationPreference(user_id=current_user.id)
+        db.add(preferences)
+
+    preferences.email_enabled = updates.email_enabled
+    preferences.inapp_enabled = updates.inapp_enabled
+    db.commit()
+    db.refresh(preferences)
+    return NotificationPreferencesOut(
+        email_enabled=preferences.email_enabled,
+        inapp_enabled=preferences.inapp_enabled,
+    )
