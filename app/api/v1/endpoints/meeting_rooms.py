@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_admin
+from app.models.meeting import Meeting
 from app.models.user import User
 from app.schemas.meeting_room import MeetingRoomCreate, MeetingRoomUpdate, MeetingRoomResponse
 from app import crud
@@ -50,6 +51,12 @@ def delete_meeting_room(room_id: int, db: Session = Depends(get_db), admin: User
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Meeting room not found"
+        )
+    meeting_count = db.query(Meeting).filter(Meeting.room_id == room_id).count()
+    if meeting_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Meetings (သို့) bookings ရှိလို့ ဒီ room ကို ဖျက်လို့ မရပါ"
         )
     crud.crud_meeting_room.delete_meeting_room(db=db, room_id=room_id)
     return {"message": "Meeting room deleted successfully"}
