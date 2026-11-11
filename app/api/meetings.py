@@ -11,6 +11,8 @@ from app.db.session import get_db
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.booking_rule import BookingRule
+from app.models.notification import Notification
+from app.models.notification_preference import NotificationPreference
 from app.schemas import meeting as meeting_schemas
 # from app.utils.zoho_utils import send_meeting_webhook_notification
 from app.utils.zoho_sync import send_zoho_notification
@@ -80,6 +82,32 @@ def create_meeting(
         )
 
     db_obj = meeting_crud.create_meeting(db=db, meeting_in=meeting_in)
+
+    if db_obj.status == "pending":
+        try:
+            booking_rule = db.query(BookingRule).filter(BookingRule.id == 1).first()
+            approver_roles = []
+            if booking_rule is None or booking_rule.approver_admin:
+                approver_roles.append("admin")
+            if booking_rule is None or booking_rule.approver_approver:
+                approver_roles.append("approver")
+            recipients = db.query(User).filter(User.role.in_(approver_roles), User.is_active.is_(True)).all()
+            for recipient in recipients:
+                preferences = (
+                    db.query(NotificationPreference)
+                    .filter(NotificationPreference.user_id == recipient.id)
+                    .first()
+                )
+                if preferences is None or preferences.inapp_enabled:
+                    db.add(Notification(
+                        user_id=recipient.id,
+                        meeting_id=db_obj.id,
+                        kind="booking_pending",
+                        message=f"New booking awaiting approval: {db_obj.title}",
+                    ))
+            db.commit()
+        except Exception:
+            db.rollback()
 
 # ZOHO-DISABLED — re-enable later
 #     # Zoho Cliq Notification Trigger
@@ -187,6 +215,22 @@ def approve_meeting(
     db_obj.decided_at = datetime.utcnow()
     db.commit()
     db.refresh(db_obj)
+    try:
+        preferences = (
+            db.query(NotificationPreference)
+            .filter(NotificationPreference.user_id == db_obj.created_by)
+            .first()
+        )
+        if preferences is None or preferences.inapp_enabled:
+            db.add(Notification(
+                user_id=db_obj.created_by,
+                meeting_id=db_obj.id,
+                kind="booking_approved",
+                message=f"Your booking was approved: {db_obj.title}",
+            ))
+            db.commit()
+    except Exception:
+        db.rollback()
     return db_obj
 
 
@@ -207,6 +251,22 @@ def reject_meeting(
     db_obj.decided_at = datetime.utcnow()
     db.commit()
     db.refresh(db_obj)
+    try:
+        preferences = (
+            db.query(NotificationPreference)
+            .filter(NotificationPreference.user_id == db_obj.created_by)
+            .first()
+        )
+        if preferences is None or preferences.inapp_enabled:
+            db.add(Notification(
+                user_id=db_obj.created_by,
+                meeting_id=db_obj.id,
+                kind="booking_rejected",
+                message=f"Your booking was rejected: {db_obj.title}",
+            ))
+            db.commit()
+    except Exception:
+        db.rollback()
     return db_obj
 
 

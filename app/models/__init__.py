@@ -12,8 +12,9 @@ from .meeting_record import MeetingRecord  # noqa: F401
 from .action_item import ActionItem  # noqa: F401
 from .booking_rule import BookingRule  # noqa: F401
 from .notification_preference import NotificationPreference  # noqa: F401
+from .notification import Notification  # noqa: F401
 
 __all__ = [
     "Base", "User", "MeetingRoom", "Meeting", "MeetingParticipant",
-    "MeetingRecord", "ActionItem", "BookingRule", "NotificationPreference",
+    "MeetingRecord", "ActionItem", "BookingRule", "NotificationPreference", "Notification",
 ]
