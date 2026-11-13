@@ -26,7 +26,7 @@ class NotificationItem(BaseModel):
 
 
 class NotificationsResponse(BaseModel):
-    items: List[NotificationItem]
+    notifications: List[NotificationItem]
     unread_count: int
 
 
@@ -51,7 +51,7 @@ def read_notifications(
         .filter(Notification.user_id == current_user.id, Notification.is_read.is_(False))
         .count()
     )
-    return NotificationsResponse(items=notifications, unread_count=unread_count)
+    return NotificationsResponse(notifications=notifications, unread_count=unread_count)
 
 
 @router.post("/mark-read", response_model=MarkReadResponse)
