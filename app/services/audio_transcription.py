@@ -134,7 +134,9 @@ def transcribe_audio_file(audio_path: Path, meeting_date: date) -> dict:
                 largest_chunk_bytes,
                 timeout_seconds,
             )
-            for index, chunk_path in enumerate(chunk_paths, start=1):
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            def transcribe_chunk(index, chunk_path):
                 logger.info(
                     "Sending Whisper chunk %s/%s: path=%s size_bytes=%s",
                     index,
@@ -142,11 +144,33 @@ def transcribe_audio_file(audio_path: Path, meeting_date: date) -> dict:
                     chunk_path,
                     chunk_path.stat().st_size,
                 )
-                chunk_text = _transcribe_audio_file(api_key, chunk_path, float(timeout_seconds))
-                if not isinstance(chunk_text, str) or not chunk_text.strip():
-                    raise AIServiceError("Whisper returned empty text")
-                transcript_chunks.append(chunk_text.strip())
-                logger.info("Whisper chunk %s/%s succeeded", index, len(chunk_paths))
+                for attempt in range(3):
+                    try:
+                        chunk_text = _transcribe_audio_file(api_key, chunk_path, float(timeout_seconds))
+                        if isinstance(chunk_text, str) and chunk_text.strip():
+                            logger.info("Whisper chunk %s/%s succeeded", index, len(chunk_paths))
+                        return chunk_text
+                    except Exception:
+                        if attempt == 2:
+                            raise
+                        logger.exception(
+                            "Whisper chunk %s/%s failed on attempt %s; retrying",
+                            index,
+                            len(chunk_paths),
+                            attempt + 1,
+                        )
+
+            chunk_texts = [None] * len(chunk_paths)
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = {
+                    executor.submit(transcribe_chunk, index, chunk_path): index - 1
+                    for index, chunk_path in enumerate(chunk_paths, start=1)
+                }
+                for future in as_completed(futures):
+                    chunk_text = future.result()
+                    if isinstance(chunk_text, str) and chunk_text.strip():
+                        chunk_texts[futures[future]] = chunk_text.strip()
+            transcript_chunks.extend(text for text in chunk_texts if text is not None)
         transcript_text = "\n".join(transcript_chunks)
     except AIServiceError:
         raise
