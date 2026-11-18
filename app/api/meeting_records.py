@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.crud import meeting_record as record_crud
 from app.db.session import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_admin
 from app.models.meeting import Meeting
 from app.models.meeting_record import MeetingRecord
 from app.models.user import User
@@ -61,6 +61,31 @@ def create_meeting_record(payload: record_schemas.MeetingRecordCreate, db: Sessi
 def read_meeting_records(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     records = record_crud.list_meeting_records(db=db, skip=skip, limit=limit)
     return [_meeting_record_response(record) for record in records]
+
+
+@router.get("/storage")
+def read_meeting_record_storage(admin: User = Depends(require_admin)):
+    try:
+        client = s3_multipart._client()
+        bucket = s3_multipart._bucket()
+        total_bytes = 0
+        continuation_token = None
+
+        while True:
+            request = {"Bucket": bucket, "Prefix": "audio/"}
+            if continuation_token:
+                request["ContinuationToken"] = continuation_token
+            page = client.list_objects_v2(**request)
+            total_bytes += sum(item["Size"] for item in page.get("Contents", []))
+            if not page.get("IsTruncated"):
+                break
+            continuation_token = page.get("NextContinuationToken")
+            if not continuation_token:
+                raise RuntimeError("Bucket listing returned no continuation token")
+
+        return {"total_bytes": total_bytes}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Unable to list recording storage") from exc
 
 
 @router.get("/{meeting_id}/status", response_model=ProcessingStatusResponse)
